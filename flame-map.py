@@ -54,9 +54,8 @@ class ElfFlameGenerator:
                 if match["type"] == "SECTION":
                     sections[match["ndx"]] = match["name"]
                 elif match["size"] != "0":
-                    symbols[match["name"]] = {
+                    symbols[(match["name"], match["addr"])] = {
                         "section": sections[match["ndx"]],
-                        "addr": match["addr"],
                         "size": int(match["size"]),
                         "found_in_nm": False,
                     }
@@ -65,7 +64,6 @@ class ElfFlameGenerator:
         for category in self._section_categories:
             tree[category] = {}
 
-        print(" ".join([self._nm, "--line-numbers", "--print-file-name", elf, *static_libraries]))
         with subprocess.Popen(
             [self._nm, "--line-numbers", "--print-file-name", elf, *static_libraries], stdout=subprocess.PIPE
         ) as p:
@@ -77,7 +75,7 @@ class ElfFlameGenerator:
                 if not match:
                     continue
 
-                symbol = symbols.get(match["name"])
+                symbol = symbols.get((match["name"], match["addr"]))
                 if not symbol:
                     continue
 
@@ -100,7 +98,7 @@ class ElfFlameGenerator:
 
                 self._add_symbol_to_tree(tree, symbol, match["name"], path_parts)
 
-        for name, symbol in symbols.items():
+        for (name, _), symbol in symbols.items():
             if not symbol["found_in_nm"]:
                 self._add_symbol_to_tree(tree, symbol, name, ["<unknown>"])
 
